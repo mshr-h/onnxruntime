@@ -131,7 +131,6 @@ void ThreadPool::ParallelFor(int32_t total, std::function<void(int32_t)> fn) {
   for (int32_t id = 1; id < total; ++id) {
     Schedule([=, &handle_iteration]() { handle_iteration(id); });
   }
-
   fn(0);
   barrier.Wait();
 }

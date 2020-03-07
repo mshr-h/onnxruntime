@@ -54,7 +54,7 @@ class EnvThread {
 
 struct ThreadOptions {
   bool SetThreadAffinityToProcessor = false;
-  unsigned int StackSize = 0;
+  unsigned int stack_size = 0;
 };
 /// \brief An interface used by the onnxruntime implementation to
 /// access operating system functionality like the filesystem etc.

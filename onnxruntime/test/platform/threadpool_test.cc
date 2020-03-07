@@ -114,7 +114,7 @@ TEST(ThreadPoolTest, TestStackSize) {
   ThreadOptions to;
   // For ARM, x86 and x64 machines, the default stack size is 1 MB
   // We change it to a different value to see if the setting works
-  to.StackSize = 8 * 1024 * 1024;
+  to.stack_size = 8 * 1024 * 1024;
   auto tp = onnxruntime::make_unique<ThreadPool>(&onnxruntime::Env::Default(), to, nullptr, 2, true);
   typedef void(WINAPI * FnGetCurrentThreadStackLimits)(_Out_ PULONG_PTR LowLimit, _Out_ PULONG_PTR HighLimit);
 
@@ -132,7 +132,7 @@ TEST(ThreadPoolTest, TestStackSize) {
   });
   n.Wait();
   if (has_thread_limit_info)
-    ASSERT_EQ(high_limit - low_limit, to.StackSize);
+    ASSERT_EQ(high_limit - low_limit, to.stack_size);
 }
 #endif
 

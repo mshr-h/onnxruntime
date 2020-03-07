@@ -173,7 +173,7 @@ void InferenceSession::ConstructorCommon(const SessionOptions& session_options,
       to.SetThreadAffinityToProcessor = true;
     else
       to.SetThreadAffinityToProcessor = false;
-    to.StackSize = session_options_.stack_size;
+    to.stack_size = session_options_.stack_size;
     thread_pool_ =
         concurrency::CreateThreadPool(session_options_.intra_op_num_threads, &Env::Default(), to, ORT_TSTR("intra-op"),
                                       session_options_.thread_pool_allow_spinning, nullptr);
@@ -181,7 +181,7 @@ void InferenceSession::ConstructorCommon(const SessionOptions& session_options,
   {
     ThreadOptions to;
     to.SetThreadAffinityToProcessor = false;
-    to.StackSize = session_options_.stack_size;
+    to.stack_size = session_options_.stack_size;
     inter_op_thread_pool_ =
         session_options_.execution_mode == ExecutionMode::ORT_PARALLEL ?
             concurrency::CreateThreadPool(session_options_.inter_op_num_threads, &Env::Default(), to,

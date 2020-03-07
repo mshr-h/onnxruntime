@@ -38,7 +38,7 @@ static int GetNumCpuCores() {
 }
 #else
 static int GetNumCpuCores() {
-  return static_cast<int>(std::thread::hardware_concurrency());
+  return static_cast<int>(std::thread::hardware_concurrency() / 2);
 }
 #endif
 std::unique_ptr<ThreadPool> CreateThreadPool(int thread_pool_size, Env* env, const ThreadOptions& thread_options,

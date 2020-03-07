@@ -50,7 +50,7 @@ class WindowsThread : public EnvThread {
   WindowsThread(const ORTCHAR_T* name_prefix, int index,
                 unsigned (*start_address)(int id, Eigen::ThreadPoolInterface* param), Eigen::ThreadPoolInterface* param,
                 const ThreadOptions& thread_options)
-      : hThread((HANDLE)_beginthreadex(nullptr, thread_options.StackSize, ThreadMain,
+      : hThread((HANDLE)_beginthreadex(nullptr, thread_options.stack_size, ThreadMain,
                                        new Param{name_prefix, index, start_address, param, thread_options}, 0,
                                        &threadID)) {
   }
@@ -74,7 +74,6 @@ class WindowsThread : public EnvThread {
     if (p->thread_options.SetThreadAffinityToProcessor)
       SetThreadAffinityMask(GetCurrentThread(), static_cast<DWORD_PTR>(1) << p->index);
     // kernel32.dll is always loaded
-    SetThreadDescription(GetCurrentThread(), L"");
     SetThreadDescriptionFunc pSetThrDesc =
         (SetThreadDescriptionFunc)GetProcAddress(GetModuleHandle(TEXT("kernel32.dll")), "SetThreadDescription");
     if (pSetThrDesc != nullptr) {

@@ -102,8 +102,8 @@ class PosixThread : public EnvThread {
     int s = pthread_attr_init(&attr);
     if (s != 0)
       ORT_THROW("pthread_attr_init failed");
-    if (thread_options.StackSize > 0) {
-      s = pthread_attr_setstacksize(&attr, thread_options.StackSize);
+    if (thread_options.stack_size > 0) {
+      s = pthread_attr_setstacksize(&attr, thread_options.stack_size);
       if (s != 0)
         ORT_THROW("pthread_attr_setstacksize failed");
     }
@@ -111,12 +111,24 @@ class PosixThread : public EnvThread {
                        new Param{name_prefix, index, start_address, param, thread_options});
     if (s != 0)
       ORT_THROW("pthread_create failed");
+    if (thread_options.SetThreadAffinityToProcessor) {
+      cpu_set_t cpuset;
+      CPU_ZERO(&cpuset);
+      CPU_SET(index, &cpuset);
+      s = pthread_setaffinity_np(hThread, sizeof(cpu_set_t), &cpuset);
+      if (s != 0)
+        ORT_THROW("pthread_setaffinity_np failed");
+    }
   }
 
   ~PosixThread() override {
     void* res;
+#ifdef NDEBUG
+    pthread_join(hThread, &res);
+#else
     int ret = pthread_join(hThread, &res);
     assert(ret == 0);
+#endif
   }
 
   // This function is called when the threadpool is cancelled.
