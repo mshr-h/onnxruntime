@@ -8,7 +8,6 @@ jobs:
     JobName: 'Win_CPU_Training'
     BuildCommand: >-
      --build_dir $(Build.BinariesDirectory)
-     --skip_submodule_sync
      --use_openmp
      --build_shared_lib
      --enable_onnx_tests
