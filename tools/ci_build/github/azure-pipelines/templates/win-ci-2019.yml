@@ -22,7 +22,7 @@ jobs:
   strategy:
     maxParallel: 2
     matrix:
-      ${{ each BuildConfiguration in parameters.BuildConfiguration }}:
+      ${{ each BuildConfiguration in parameters.BuildConfigurations }}:
         ${{ BuildConfiguration }}:
           BuildConfig: ${{ BuildConfiguration }}
   workspace:
