@@ -16,6 +16,7 @@ parameters:
   AgentDemands: []
   OrtPackageId: Microsoft.ML.OnnxRuntime
   BuildConfigurations: ['RelWithDebInfo'] # Options: Debug, RelWithDebInfo
+  RunTests : 'true'
 jobs:
 - job: ${{ parameters.JobName }}
   timeoutInMinutes: 120
@@ -144,18 +145,20 @@ jobs:
           arguments: '--configuration $(BuildConfig) -p:Platform="Any CPU" -p:OnnxRuntimeBuildDirectory="$(Build.BinariesDirectory)" -p:OrtPackageId=${{ parameters.OrtPackageId }}'
           workingDirectory: '$(Build.SourcesDirectory)\csharp'
 
-      - script: |
-         mklink  /D /J $(Build.BinariesDirectory)\$(BuildConfig)\models $(Build.BinariesDirectory)\models
-         DIR dist\ /S /B > wheel_filename_file
-         set /p WHEEL_FILENAME=<wheel_filename_file
-         del wheel_filename_file
-         python.exe -m pip install -q --upgrade %WHEEL_FILENAME%
-         set PATH=%PATH%;$(Build.BinariesDirectory)\$(BuildConfig)\$(BuildConfig)
-         @echo %PATH%
-         python $(Build.SourcesDirectory)\tools\ci_build\build.py $(BuildCommand) --test --config $(BuildConfig) --enable_lto
-        workingDirectory: '$(Build.BinariesDirectory)\$(BuildConfig)\$(BuildConfig)'
-        displayName: 'Run tests'
+      - ${{ if eq(parameters.RunTests, true) }}:
+        - script: |
+           mklink  /D /J $(Build.BinariesDirectory)\$(BuildConfig)\models $(Build.BinariesDirectory)\models
+           DIR dist\ /S /B > wheel_filename_file
+           set /p WHEEL_FILENAME=<wheel_filename_file
+           del wheel_filename_file
+           python.exe -m pip install -q --upgrade %WHEEL_FILENAME%
+           set PATH=%PATH%;$(Build.BinariesDirectory)\$(BuildConfig)\$(BuildConfig)
+           @echo %PATH%
+           python $(Build.SourcesDirectory)\tools\ci_build\build.py $(BuildCommand) --test --config $(BuildConfig) --enable_lto
+          workingDirectory: '$(Build.BinariesDirectory)\$(BuildConfig)\$(BuildConfig)'
+          displayName: 'Run tests'
 
+    - ${{ if eq(parameters.RunTests, true) }}:
       - task: PublishTestResults@2
         displayName: 'Publish unit test results'
         inputs:
