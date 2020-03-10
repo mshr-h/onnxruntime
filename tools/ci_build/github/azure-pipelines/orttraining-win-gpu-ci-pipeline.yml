@@ -16,10 +16,8 @@ jobs:
      --cuda_home "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.1"
      --cudnn_home "C:\local\cudnn-10.1-windows10-x64-v7.6.5.32\cuda"
     BuildArch: 'x64'
-    EnvSetupScript: 'setup_env.bat'
+    EnvSetupScript: 'setup_env_cuda.bat'
     sln_platform: 'x64'
     CudaVersion: '10.1'
     OrtPackageId: 'Microsoft.ML.OnnxRuntime.Gpu'
-    BuildConfigurations:
-    - 'Debug'
-    #- 'RelWithDebInfo' # TODO enable
+    BuildConfigurations: ['Debug', 'RelWithDebInfo']
