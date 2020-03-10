@@ -99,9 +99,10 @@ jobs:
         workingFolder: '$(Build.BinariesDirectory)\$(BuildConfig)'
         createLogFile: true
 
-    # Build $(BuildConfig) -- this variable required to build C#
+    # The Configuration variable is required to build C#
     - script: |
        @echo ##vso[task.setvariable variable=Configuration]$(BuildConfig)
+      displayName: 'Set Configuration variable'
 
     - template: set-test-data-variables-step.yml
 
