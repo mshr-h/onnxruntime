@@ -9,6 +9,7 @@
 #include "core/common/profiler.h"
 #include "core/session/environment.h"
 #include "core/framework/random_seed.h"
+#include "core/providers/cuda/cuda_allocator.h"
 #include "orttraining/core/session/training_session.h"
 #include "orttraining/core/framework/tensorboard/event_writer.h"
 #include "orttraining/core/framework/mpi_setup.h"
@@ -16,6 +17,12 @@
 #include "orttraining/models/runner/training_runner.h"
 #include "orttraining/models/runner/training_util.h"
 #include "orttraining/models/runner/data_loader.h"
+
+namespace onnxruntime {
+std::shared_ptr<IExecutionProviderFactory> CreateExecutionProviderFactory_CUDA(OrtDevice::DeviceId device_id,
+                                                                               size_t cuda_mem_limit = std::numeric_limits<size_t>::max(),
+                                                                               onnxruntime::ArenaExtendStrategy arena_extend_strategy = ArenaExtendStrategy::kNextPowerOfTwo);
+}
 
 using namespace onnxruntime;
 using namespace onnxruntime::training;
@@ -30,6 +37,7 @@ struct BertParameters : public TrainingRunner::Parameters {
   float initial_lr_phase2;
   size_t num_train_steps_phase2;
   float warmup_ratio_phase2;
+  float cuda_mem_limit_in_gb = -1;
 
   PathString train_data_dir_phase2;
   PathString test_data_dir_phase2;
@@ -128,6 +136,8 @@ Status ParseArguments(int argc, char* argv[], BertParameters& params, OrtParamet
       ("beta", "Adam/Lamb beta parameter", cxxopts::value<float>()->default_value("0.999"))
       ("lambda", "Adam/Lamb lambda parameter", cxxopts::value<float>()->default_value("0.01"))
       ("epsilon", "Adam/Lamb epsilon parameter", cxxopts::value<float>()->default_value("1e-6"))
+      ("ratio_min", "Lamb min ratio parameter", cxxopts::value<float>()->default_value("0.05"))
+      ("ratio_max", "Lamb max ratio parameter", cxxopts::value<float>()->default_value("5.0"))
       ("cuda_mem_limit_in_gb", "Max cuda memory ort can use, in GB", cxxopts::value<float>()->default_value("-1.0"))
       ("data_parallel_size", "Data parallel group size.", cxxopts::value<int>()->default_value("1"))
       ("horizontal_parallel_size", "Horizontal model parallel group size.", cxxopts::value<int>()->default_value("1"));
@@ -299,8 +309,14 @@ Status ParseArguments(int argc, char* argv[], BertParameters& params, OrtParamet
     float beta = flags["beta"].as<float>();
     float lambda = flags["lambda"].as<float>();
     float epsilon = flags["epsilon"].as<float>();
+    float ratio_min = flags["ratio_min"].as<float>();
+    float ratio_max = flags["ratio_max"].as<float>();
     ORT_RETURN_IF_NOT(alpha >= 0.f && alpha <= 1.f, "alpha is not in valid range [0.0, 1.0]");
     ORT_RETURN_IF_NOT(beta >= 0.f && beta <= 1.f, "alpha is not in valid range [0.0, 1.0]");
+    ORT_RETURN_IF_NOT(epsilon >= 0.f, "epsilon should be non-negative.");
+    ORT_RETURN_IF_NOT(ratio_min >= 0.f, "ratio_min should be non-negative.");
+    ORT_RETURN_IF_NOT(ratio_max >= 0.f, "ratio_max should be non-negative.");
+    ORT_RETURN_IF_NOT(ratio_max >= ratio_min, "ratio_max should be greater than or equal to ratio_min.");
     std::vector<std::string> no_decay{"bias", "gamma", "beta", "LayerNorm"};
 
     params.optimizer_attributes = [=](const std::string& weight) {
@@ -314,6 +330,8 @@ Status ParseArguments(int argc, char* argv[], BertParameters& params, OrtParamet
           {"beta", beta},
           {"lambda", zero_lambda ? 0.f : lambda},
           {"epsilon", epsilon},
+          {"ratio_min", ratio_min},
+          {"ratio_max", ratio_max}
       };
     };
 
@@ -393,6 +411,15 @@ void setup_training_params(BertParameters& params) {
     std::cout << "Use Adsum for allreduce." << std::endl;
 #endif
 
+#ifdef USE_CUDA
+  OrtDevice::DeviceId device_id = static_cast<OrtDevice::DeviceId>(params.mpi_context.local_rank);
+  size_t cuda_mem_limit = std::numeric_limits<size_t>::max();
+  if (params.cuda_mem_limit_in_gb > 0)
+    cuda_mem_limit = static_cast<size_t>(params.cuda_mem_limit_in_gb * 1024 * 1024 * 1024);
+  params.providers.emplace(kCudaExecutionProvider, CreateExecutionProviderFactory_CUDA(device_id, cuda_mem_limit));
+  params.input_allocator = std::make_shared<CUDAPinnedAllocator>(device_id, CUDA_PINNED);
+#endif
+
   params.loss_func_info = LossFunctionInfo(OpDef("BertLoss", kOnnxDomain),
                                            "total_loss",
                                            {/*prediction_masked_lm*/ "output1",
@@ -432,8 +459,6 @@ void setup_training_params(BertParameters& params) {
       {"masked_lm_ids", "masked_lm_ids"},
       {"masked_lm_weights", "masked_lm_weights"},
       {"next_sentence_label", "next_sentence_labels"}};
-
-  params.use_cuda = true;
 
   params.skip_evaluation = params.is_perf_test;
 
@@ -595,7 +620,7 @@ static Status RunTraining(const BertParameters& params) {
                                                                  params_for_phase.test_data_dir,
                                                                  max_num_files_preload);
 
-    ORT_RETURN_IF_ERROR(runner->EndTraining(test_data_loader.get(), false));
+    ORT_RETURN_IF_ERROR(runner->EndTraining(test_data_loader.get()));
   }
 
   return Status::OK();
