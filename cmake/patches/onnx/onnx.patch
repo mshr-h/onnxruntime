@@ -1,57 +1,43 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 044996e..ded7e39 100644
+index 3bd984855..ed951ca3c 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -53,6 +53,7 @@ option(ONNX_USE_LITE_PROTO "Use lite protobuf instead of full." OFF)
+@@ -45,6 +45,7 @@ option(ONNX_USE_LITE_PROTO "Use lite protobuf instead of full." OFF)
  option(ONNX_DISABLE_EXCEPTIONS "Disable exception handling." OFF)
  option(ONNX_DISABLE_STATIC_REGISTRATION "Disable static registration for ONNX operator schemas." OFF)
  option(ONNX_USE_UNITY_BUILD "Enable Unity (Jumbo) build for" OFF)
 +option(ONNX_MINIMAL_BUILD "Build only essential ONNX components" OFF)
+ option(ONNX_PYODIDE_BUILD "Build ONNX for Pyodide/Emscripten (wasm32)." OFF)
  option(ONNX_INSTALL "Install ONNX targets, headers, and CMake config files" ON)
  if(WIN32)
-   option(ONNX_USE_MSVC_STATIC_RUNTIME "Build with MSVC static runtime" OFF)
-@@ -399,14 +400,28 @@ relative_protobuf_generate_cpp(ONNX_PROTO_SRCS
-                                onnx/onnx-operators.in.proto
-                                onnx/onnx-data.in.proto)
- 
--file(GLOB_RECURSE __tmp_srcs "${ONNX_ROOT}/onnx/*.h" "${ONNX_ROOT}/onnx/*.cc")
--file(GLOB_RECURSE onnx_gtests_src "${ONNX_ROOT}/onnx/test/cpp/*.h"
--    "${ONNX_ROOT}/onnx/test/cpp/*.cc"
--    "${ONNX_ROOT}/onnx/backend/test/cpp/*.cc"
--    "${ONNX_ROOT}/onnx/backend/test/cpp/*.h")
--list(REMOVE_ITEM __tmp_srcs "${ONNX_ROOT}/onnx/cpp2py_export.cc")
--list(REMOVE_ITEM __tmp_srcs ${onnx_gtests_src} "${ONNX_ROOT}/onnx/test/cmake/main.cc")
--list(APPEND ONNX_SRCS ${__tmp_srcs})
+@@ -492,7 +493,21 @@ endfunction()
+ # target_sources. onnx_core is an OBJECT library consumed by both the onnx
+ # static library and the onnx_cpp2py_export Python extension module.
+ add_library(onnx_core OBJECT)
+-add_subdirectory(onnx)
 +if(ONNX_MINIMAL_BUILD)
-+    message(STATUS "Configuring ONNX minimal build")
-+    set(ONNX_SRCS
-+      "${ONNX_ROOT}/onnx/common/common.h"
-+      "${ONNX_ROOT}/onnx/defs/data_type_utils.h"
-+      "${ONNX_ROOT}/onnx/defs/data_type_utils.cc"
-+    )
-+    # Ensure ONNX_ML is treated as ON for minimal build consistency with ORT's file
-+    set(ONNX_ML ON CACHE BOOL "Enable traditional ML API." FORCE)
-+    # Minimal build doesn't need Python or tests
-+    set(ONNX_BUILD_PYTHON OFF CACHE BOOL "Build Python binaries" FORCE)
-+    set(ONNX_BUILD_TESTS OFF CACHE BOOL "Build ONNX C++ APIs Tests" FORCE)
++  message(STATUS "Configuring ONNX minimal build")
++  target_sources(onnx_core PRIVATE
++    onnx/common/common.h
++    onnx/defs/data_type_utils.h
++    onnx/defs/data_type_utils.cc
++  )
++  # Ensure ONNX_ML is treated as ON for minimal build consistency with ORT's file.
++  set(ONNX_ML ON CACHE BOOL "Enable traditional ML API." FORCE)
++  # Minimal build doesn't need Python or tests.
++  set(ONNX_BUILD_PYTHON OFF CACHE BOOL "Build Python binaries" FORCE)
++  set(ONNX_BUILD_TESTS OFF CACHE BOOL "Build ONNX C++ APIs Tests" FORCE)
 +else()
-+    file(GLOB_RECURSE __tmp_srcs "${ONNX_ROOT}/onnx/*.h" "${ONNX_ROOT}/onnx/*.cc")
-+    file(GLOB_RECURSE onnx_gtests_src "${ONNX_ROOT}/onnx/test/cpp/*.h"
-+        "${ONNX_ROOT}/onnx/test/cpp/*.cc"
-+        "${ONNX_ROOT}/onnx/backend/test/cpp/*.cc"
-+        "${ONNX_ROOT}/onnx/backend/test/cpp/*.h")
-+    list(REMOVE_ITEM __tmp_srcs "${ONNX_ROOT}/onnx/cpp2py_export.cc")
-+    list(REMOVE_ITEM __tmp_srcs ${onnx_gtests_src} "${ONNX_ROOT}/onnx/test/cmake/main.cc")
-+    list(APPEND ONNX_SRCS ${__tmp_srcs})
++  add_subdirectory(onnx)
 +endif()
  
- set(LINKED_PROTOBUF_TARGET protobuf::libprotobuf)
- if(ONNX_USE_LITE_PROTO)
+ relative_protobuf_generate_cpp(ONNX_PROTO_SRCS
+                                onnx/onnx.in.proto
 diff --git a/cmake/Utils.cmake b/cmake/Utils.cmake
-index 1987edd..04b3088 100644
+index 2984d7263..7085911d2 100644
 --- a/cmake/Utils.cmake
 +++ b/cmake/Utils.cmake
-@@ -103,18 +103,7 @@ endfunction()
+@@ -166,18 +166,7 @@ endfunction()
  
  function(add_onnx_compile_options target)
    if(MSVC)
@@ -71,10 +57,10 @@ index 1987edd..04b3088 100644
        target_compile_options(${target} PRIVATE "/WX")
      endif()
 diff --git a/onnx/defs/nn/old.cc b/onnx/defs/nn/old.cc
-index a6a8a83..153da87 100644
+index 4dd66197c..6187eb39e 100644
 --- a/onnx/defs/nn/old.cc
 +++ b/onnx/defs/nn/old.cc
-@@ -4026,7 +4026,6 @@ ONNX_OPERATOR_SET_SCHEMA(
+@@ -3995,7 +3995,6 @@ ONNX_OPERATOR_SET_SCHEMA(
      GroupNormalization,
      18,
      OpSchema()
