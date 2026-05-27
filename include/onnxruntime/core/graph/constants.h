@@ -15,6 +15,7 @@ constexpr const char* kOnnxDomain = "";
 // NOTE: Node::Init converts kOnnxDomainAlias to kOnnxDomain, so all Node instances use kOnnxDomain.
 constexpr const char* kOnnxDomainAlias = "ai.onnx";
 constexpr const char* kMLDomain = "ai.onnx.ml";
+constexpr const char* kOnnxPreviewDomain = "ai.onnx.preview";
 constexpr const char* kMSDomain = "com.microsoft";
 constexpr const char* kPytorchAtenDomain = "org.pytorch.aten";
 constexpr const char* kMSExperimentalDomain = "com.microsoft.experimental";
